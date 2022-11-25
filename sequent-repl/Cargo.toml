@@ -1,6 +1,6 @@
 [package]
 name = "sequent-repl"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 readme = "README.md"
 authors = ["Kindred Group", "Emil Koutanov"]
@@ -11,7 +11,7 @@ keywords = ["des", "simulation", "discrete-event"]
 exclude = ["/images", "/bin", "/.idea", "/.github", "/coverage", "/doc", "/examples"]
 
 [dependencies]
-sequent = { package = "sequent", version = "0.2.0", path = "../sequent" }
+sequent = { package = "sequent", version = "0.2.1", path = "../sequent" }
 revolver = "0.1.0"
 stanza = "0.3.0"
 serde = "1.0.144"
