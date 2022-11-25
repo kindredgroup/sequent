@@ -1,0 +1,36 @@
+name: Cargo build
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: publish
+    env:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - run: cargo test -- --include-ignored
+      - run: cargo test --examples
+      - run: cargo doc --no-deps
+      - run: bin/clippy-pedantic.sh
+      - run: >
+          if [ $(bin/is-release.sh) = "1" ]; then 
+              cargo publish
+          fi
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+      - run: rustup component add llvm-tools-preview
+      - run: curl -L https://github.com/mozilla/grcov/releases/latest/download/grcov-x86_64-unknown-linux-gnu.tar.bz2 | tar jxf -
+      - run: PATH=$PATH:$(pwd) bin/coverage-report.sh
+      - run: bash <(curl -s https://codecov.io/bash) -f lcov.info

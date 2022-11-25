@@ -1,0 +1,13 @@
+[package]
+name = "sequent"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror = "1.0.37"
+serde = { version = "1.0.144",  features = ["derive"] }
+serde_yaml = "0.9.13"
+
+[dev-dependencies]
+flanker-assert-str = "0.5.0"
+flanker-temp = "0.5.0"
