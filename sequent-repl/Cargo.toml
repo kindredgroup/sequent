@@ -2,7 +2,13 @@
 name = "sequent-repl"
 version = "0.1.0"
 edition = "2021"
-authors = ["Kindred Group"]
+readme = "README.md"
+authors = ["Kindred Group", "Emil Koutanov"]
+license = "MIT"
+description = "An adapter for using Sequent with Revolver."
+repository = "https://github.com/kindredgroup/sequent"
+keywords = ["des", "simulation", "discrete-event"]
+exclude = ["/images", "/bin", "/.idea", "/.github", "/coverage", "/doc", "/examples"]
 
 [dependencies]
 sequent = { package = "sequent", version = "0.1.0", path = "../sequent" }

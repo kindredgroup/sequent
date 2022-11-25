@@ -2,6 +2,13 @@
 name = "sequent"
 version = "0.1.0"
 edition = "2021"
+readme = "../README.md"
+authors = ["Kindred Group", "Emil Koutanov"]
+license = "MIT"
+description = "A library for interactive discrete-event simulations."
+repository = "https://github.com/kindredgroup/sequent"
+keywords = ["des", "simulation", "discrete-event"]
+exclude = ["/images", "/bin", "/.idea", "/.github", "/coverage", "/doc", "/examples"]
 
 [dependencies]
 thiserror = "1.0.37"
