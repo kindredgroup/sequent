@@ -11,19 +11,33 @@ use revolver::looper::Looper;
 use revolver::terminal::Terminal;
 use serde::Deserialize;
 use std::borrow::Cow;
+use std::marker::PhantomData;
 use std::path::PathBuf;
 
 /// Command that will load the simulation from a user-specified YAML file. Upon completion, the
 /// simulation will be reset to the initial state, as per the loaded file, and the cursor
 /// position reset to 0.
-pub struct Load {
+pub struct Load<S, C> {
     path: String,
+    __phantom_data: PhantomData<(S, C)>
 }
 
-impl<S, C: Context<S>, T: Terminal> Command<C, SimulationError<S>, T> for Load
+impl<S, C> Load<S, C> {
+    pub fn new(path: String) -> Self {
+        Self {
+            path,
+            __phantom_data: PhantomData::default(),
+        }
+    }
+}
+
+impl<S, C: Context<State = S>, T: Terminal> Command<T> for Load<S, C>
 where
     for<'de> S: Clone + Deserialize<'de>,
 {
+    type Context = C;
+    type Error = SimulationError<S>;
+
     fn apply(
         &mut self,
         looper: &mut Looper<C, SimulationError<S>, T>,
@@ -42,21 +56,34 @@ where
 }
 
 /// Parser for [`Load`].
-pub struct Parser;
+pub struct Parser<S, C> {
+    __phantom_data: PhantomData<(S, C)>
+}
 
-impl<S, C: Context<S>, T: Terminal> NamedCommandParser<C, SimulationError<S>, T> for Parser
+impl<S, C> Default for Parser<S, C> {
+    fn default() -> Self {
+        Self {
+            __phantom_data: PhantomData::default()
+        }
+    }
+}
+
+impl<S, C: Context<State = S> + 'static, T: Terminal> NamedCommandParser<T> for Parser<S, C>
 where
-    for<'de> S: Clone + Deserialize<'de>,
+    for<'de> S: Clone + Deserialize<'de> + 'static,
 {
+    type Context = C;
+    type Error = SimulationError<S>;
+
     fn parse(
         &self,
         s: &str,
-    ) -> Result<Box<dyn Command<C, SimulationError<S>, T>>, ParseCommandError> {
+    ) -> Result<Box<dyn Command<T, Context = C, Error = SimulationError<S>>>, ParseCommandError> {
         if s.is_empty() {
             return Err(ParseCommandError("empty arguments to 'load'".into()));
         }
         let path = s.into();
-        Ok(Box::new(Load { path }))
+        Ok(Box::new(Load::new(path)))
     }
 
     fn shorthand(&self) -> Option<Cow<'static, str>> {

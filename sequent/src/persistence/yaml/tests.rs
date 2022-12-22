@@ -31,8 +31,10 @@ impl ToString for TestEvent {
     }
 }
 
-impl Event<TestState> for TestEvent {
-    fn apply(&self, _: &mut TestState, _: &mut Queue<TestState>) -> Result<(), TransitionError> {
+impl Event for TestEvent {
+    type State = TestState;
+
+    fn apply(&self, _: &mut Self::State, _: &mut Queue<Self::State>) -> Result<(), TransitionError> {
         unimplemented!()
     }
 }

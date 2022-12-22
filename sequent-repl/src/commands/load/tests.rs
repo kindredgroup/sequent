@@ -11,8 +11,8 @@ use revolver::looper::Looper;
 use revolver::terminal::{Mock, PrintOutput};
 
 fn command_parsers<'d>(
-) -> Vec<Box<dyn NamedCommandParser<TestContext, SimulationError<TestState>, Mock<'d>>>> {
-    vec![Box::new(Parser)]
+) -> Vec<Box<dyn NamedCommandParser<Mock<'d>, Context = TestContext, Error = SimulationError<TestState>>>> {
+    vec![Box::new(Parser::default())]
 }
 
 #[test]
@@ -31,9 +31,7 @@ fn apply() {
         &commander,
         &mut context,
     );
-    let mut load = Load {
-        path: temp.as_ref().to_string_lossy().to_string(),
-    };
+    let mut load = Load::new(temp.as_ref().to_string_lossy().to_string());
     assert_eq!(ApplyOutcome::Applied, load.apply(&mut looper).unwrap());
     assert!(!looper.terminal().invocations()[0]
         .print()
@@ -56,9 +54,7 @@ fn apply_corrupt_file() {
         &commander,
         &mut context,
     );
-    let mut load = Load {
-        path: temp.as_ref().to_string_lossy().to_string(),
-    };
+    let mut load = Load::new(temp.as_ref().to_string_lossy().to_string());
     assert!(load
         .apply(&mut looper)
         .unwrap_err()
@@ -85,5 +81,5 @@ fn parse_empty_args_fails() {
 
 #[test]
 fn parser_lints() {
-    assert_pedantic::<TestContext, _, Mock>(&Parser);
+    assert_pedantic::<TestContext, _, Mock>(&Parser::default());
 }

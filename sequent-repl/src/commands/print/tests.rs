@@ -7,9 +7,9 @@ use revolver::terminal::{Mock, PrintOutput};
 use crate::commands::print::{Parser, Print};
 use crate::commands::test_fixtures::{TestContext, TestState};
 
-fn command_parsers<'d>() -> Vec<Box<dyn NamedCommandParser<TestContext, SimulationError<TestState>, Mock<'d>>>> {
+fn command_parsers<'d>() -> Vec<Box<dyn NamedCommandParser<Mock<'d>, Context = TestContext, Error = SimulationError<TestState>>>> {
     vec! [
-        Box::new(Parser)
+        Box::new(Parser::default())
     ]
 }
 
@@ -19,7 +19,7 @@ fn apply() {
     let commander = Commander::new(command_parsers());
     let mut context = TestContext::default();
     let mut looper = Looper::new(&mut term, &commander, &mut context);
-    assert_eq!(ApplyOutcome::Applied, Print.apply(&mut looper).unwrap());
+    assert_eq!(ApplyOutcome::Applied, Print::default().apply(&mut looper).unwrap());
     assert_eq!("[]\n", looper.terminal().invocations()[0].print().unwrap_output());
 }
 
@@ -31,5 +31,5 @@ fn parse() {
 
 #[test]
 fn parser_lints() {
-    assert_pedantic::<TestContext, _, Mock>(&Parser);
+    assert_pedantic::<TestContext, _, Mock>(&Parser::default());
 }

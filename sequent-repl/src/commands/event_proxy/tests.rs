@@ -3,15 +3,16 @@
 use crate::commands::event_proxy::{EventProxy, Parser};
 use crate::commands::test_fixtures::{Append, TestContext, TestState};
 use crate::Context;
-use sequent::{SimulationError, TransitionError};
 use revolver::command::{
     assert_pedantic, ApplyOutcome, Command, Commander, Description, NamedCommandParser,
 };
 use revolver::looper::Looper;
-use revolver::terminal::{AccessTerminalError, lines, Mock, PrintOutput};
+use revolver::terminal::{lines, AccessTerminalError, Mock, PrintOutput};
+use sequent::{SimulationError, TransitionError};
 use std::borrow::Cow;
+use std::marker::PhantomData;
 
-fn parser() -> Parser<TestState, Append> {
+fn parser() -> Parser<TestState, TestContext, Append> {
     Parser::new(
         None,
         Description {
@@ -22,8 +23,11 @@ fn parser() -> Parser<TestState, Append> {
     )
 }
 
-fn command_parsers<'d>(
-) -> Vec<Box<dyn NamedCommandParser<TestContext, SimulationError<TestState>, Mock<'d>>>> {
+fn command_parsers<'d>() -> Vec<
+    Box<
+        dyn NamedCommandParser<Mock<'d>, Context = TestContext, Error = SimulationError<TestState>>,
+    >,
+> {
     vec![Box::new(parser())]
 }
 
@@ -32,13 +36,10 @@ fn apply_at_cursor() {
     let mut term = Mock::default();
     let commander = Commander::new(command_parsers());
     let mut context = TestContext::new(0);
-    let mut looper = Looper::new(
-        &mut term,
-        &commander,
-        &mut context,
-    );
+    let mut looper = Looper::new(&mut term, &commander, &mut context);
     let mut proxy = EventProxy {
         event: Some(Box::new(Append { id: 0 })),
+        __phantom_data: PhantomData::default(),
     };
     assert_eq!(ApplyOutcome::Applied, proxy.apply(&mut looper).unwrap());
     assert_eq!(vec![0], looper.context().sim().current_state().transitions);
@@ -49,13 +50,10 @@ fn apply_with_truncate_yes() {
     let mut term = Mock::default().on_read_line(lines(&["yes"]));
     let commander = Commander::new(command_parsers());
     let mut context = TestContext::default();
-    let mut looper = Looper::new(
-        &mut term,
-        &commander,
-        &mut context,
-    );
+    let mut looper = Looper::new(&mut term, &commander, &mut context);
     let mut proxy = EventProxy {
         event: Some(Box::new(Append { id: 0 })),
+        __phantom_data: PhantomData::default(),
     };
     assert_eq!(ApplyOutcome::Applied, proxy.apply(&mut looper).unwrap());
     assert_eq!(
@@ -70,13 +68,10 @@ fn apply_with_truncate_no() {
     let mut term = Mock::default().on_read_line(lines(&["no"]));
     let commander = Commander::new(command_parsers());
     let mut context = TestContext::default();
-    let mut looper = Looper::new(
-        &mut term,
-        &commander,
-        &mut context
-    );
+    let mut looper = Looper::new(&mut term, &commander, &mut context);
     let mut proxy = EventProxy {
         event: Some(Box::new(Append { id: 0 })),
+        __phantom_data: PhantomData::default(),
     };
     assert_eq!(ApplyOutcome::Skipped, proxy.apply(&mut looper).unwrap());
     assert_eq!(
@@ -95,20 +90,19 @@ fn apply_with_truncate_terminal_error() {
         Mock::default().on_read_line(|| Err(AccessTerminalError("terminal exploded".into())));
     let commander = Commander::new(command_parsers());
     let mut context = TestContext::default();
-    let mut looper = Looper::new(
-        &mut term,
-        &commander,
-        &mut context,
-    );
+    let mut looper = Looper::new(&mut term, &commander, &mut context);
     let mut proxy = EventProxy {
         event: Some(Box::new(Append { id: 0 })),
+        __phantom_data: PhantomData::default(),
     };
     assert_eq!(
         AccessTerminalError("terminal exploded".into()),
-        proxy.apply(&mut looper)
+        proxy
+            .apply(&mut looper)
             .unwrap_err()
             .access_terminal()
-            .unwrap());
+            .unwrap()
+    );
 }
 
 #[test]
@@ -116,14 +110,8 @@ fn apply_with_duplicate_raises_transition_error() {
     let mut term = Mock::default();
     let commander = Commander::new(command_parsers());
     let mut context = TestContext::new(1);
-    let mut looper = Looper::new(
-        &mut term,
-        &commander,
-        &mut context,
-    );
-    let mut proxy = EventProxy {
-        event: Some(Box::new(Append { id: 0 })),
-    };
+    let mut looper = Looper::new(&mut term, &commander, &mut context);
+    let mut proxy = EventProxy::new(Some(Box::new(Append { id: 0 })));
     looper.context().sim().step().unwrap();
     assert_eq!(vec![0], looper.context().sim().current_state().transitions);
     assert_eq!(

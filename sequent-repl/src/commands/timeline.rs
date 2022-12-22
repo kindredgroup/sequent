@@ -1,6 +1,7 @@
 //! Printing of the event timeline.
 
 use std::borrow::Cow;
+use std::marker::PhantomData;
 use stanza::renderer::console::{Console, Decor};
 use stanza::renderer::Renderer;
 use stanza::style::{Bold, HAlign, MinWidth, Palette16, Styles, TextFg};
@@ -12,9 +13,22 @@ use revolver::terminal::Terminal;
 use crate::Context;
 
 /// Command to print the event timeline as a table to the terminal device.
-pub struct Timeline;
+pub struct Timeline<S, C> {
+    __phantom_data: PhantomData<(S, C)>
+}
 
-impl<S, C: Context<S>, T: Terminal> Command<C, SimulationError<S>, T> for Timeline {
+impl<S, C> Default for Timeline<S, C> {
+    fn default() -> Self {
+        Self {
+            __phantom_data: PhantomData::default()
+        }
+    }
+}
+
+impl<S, C: Context<State = S>, T: Terminal> Command<T> for Timeline<S, C> {
+    type Context = C;
+    type Error = SimulationError<S>;
+
     fn apply(&mut self, looper: &mut Looper<C, SimulationError<S>, T>) -> Result<ApplyOutcome, ApplyCommandError<SimulationError<S>>> {
         let (terminal, _, context) = looper.split();
         let table = timeline(context.sim());
@@ -29,11 +43,24 @@ impl<S, C: Context<S>, T: Terminal> Command<C, SimulationError<S>, T> for Timeli
 }
 
 /// Parser for [`Timeline`].
-pub struct Parser;
+pub struct Parser<S, C> {
+    __phantom_data: PhantomData<(S, C)>
+}
 
-impl<S, C: Context<S>, T: Terminal> NamedCommandParser<C, SimulationError<S>, T> for Parser {
-    fn parse(&self, s: &str) -> Result<Box<dyn Command<C, SimulationError<S>, T>>, ParseCommandError> {
-        self.parse_no_args(s, || Timeline)
+impl<S, C> Default for Parser<S, C> {
+    fn default() -> Self {
+        Self {
+            __phantom_data: PhantomData::default()
+        }
+    }
+}
+
+impl<S: 'static, C: Context<State = S> + 'static, T: Terminal> NamedCommandParser<T> for Parser<S, C> {
+    type Context = C;
+    type Error = SimulationError<S>;
+
+    fn parse(&self, s: &str) -> Result<Box<dyn Command<T, Context = C, Error = SimulationError<S>>>, ParseCommandError> {
+        self.parse_no_args(s, Timeline::default)
     }
 
     fn shorthand(&self) -> Option<Cow<'static, str>> {

@@ -110,7 +110,7 @@ impl<S> Simulation<S> {
     /// * [`SimulationError::TruncationRequired`], if there is already an event
     /// at the cursor location. The error returns the event object that is otherwise consumed by
     /// this method.
-    pub fn push_event(&mut self, event: Box<dyn Event<S>>) -> Result<(), SimulationError<S>> {
+    pub fn push_event(&mut self, event: Box<dyn Event<State = S>>) -> Result<(), SimulationError<S>> {
         if self.cursor != self.scenario.timeline.len() {
             return Err(SimulationError::TruncationRequired(event));
         }
@@ -171,7 +171,7 @@ pub enum SimulationError<S> {
     Transition(#[from] TransitionError),
 
     #[error("truncation required")]
-    TruncationRequired(Box<dyn Event<S>>),
+    TruncationRequired(Box<dyn Event<State = S>>),
 
     #[error("read scenario: {0}")]
     ReadScenario(#[from] ReadScenarioError),
@@ -196,7 +196,7 @@ impl<S> SimulationError<S> {
     }
 
     /// Converts the error into a [`Option<TruncationRequired>`].
-    pub fn truncation_required(self) -> Option<Box<dyn Event<S>>> {
+    pub fn truncation_required(self) -> Option<Box<dyn Event<State = S>>> {
         match self {
             SimulationError::TruncationRequired(err) => Some(err),
             _ => None,

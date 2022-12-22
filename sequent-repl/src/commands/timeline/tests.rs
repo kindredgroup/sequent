@@ -11,8 +11,8 @@ use stanza::renderer::Renderer;
 use std::borrow::Cow;
 
 fn command_parsers<'d>(
-) -> Vec<Box<dyn NamedCommandParser<TestContext, SimulationError<TestState>, Mock<'d>>>> {
-    vec![Box::new(Parser)]
+) -> Vec<Box<dyn NamedCommandParser<Mock<'d>, Context = TestContext, Error = SimulationError<TestState>>>> {
+    vec![Box::new(Parser::default())]
 }
 
 #[test]
@@ -21,7 +21,7 @@ fn apply() {
     let commander = Commander::new(command_parsers());
     let mut context = TestContext::default();
     let mut looper = Looper::new(&mut term, &commander, &mut context);
-    assert_eq!(ApplyOutcome::Applied, Timeline.apply(&mut looper).unwrap());
+    assert_eq!(ApplyOutcome::Applied, Timeline::default().apply(&mut looper).unwrap());
     assert!(!looper.terminal().invocations()[0]
         .print()
         .unwrap_output()
@@ -36,7 +36,7 @@ fn parse() {
 
 #[test]
 fn parser_lints() {
-    assert_pedantic::<TestContext, _, Mock>(&Parser);
+    assert_pedantic::<TestContext, _, Mock>(&Parser::default());
 }
 
 #[derive(Debug, Clone)]
@@ -63,7 +63,9 @@ impl ToString for SampleEvent {
     }
 }
 
-impl Event<SampleState> for SampleEvent {
+impl Event for SampleEvent {
+    type State = SampleState;
+
     fn apply(&self, _: &mut SampleState, _: &mut Queue<SampleState>) -> Result<(), TransitionError> {
         Ok(())
     }

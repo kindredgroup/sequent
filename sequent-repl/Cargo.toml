@@ -12,7 +12,7 @@ exclude = ["/images", "/bin", "/.idea", "/.github", "/coverage", "/doc", "/examp
 
 [dependencies]
 sequent = { package = "sequent", version = "0.2.1", path = "../sequent" }
-revolver = "0.1.0"
+revolver = "0.2.0"
 stanza = "0.3.0"
 serde = "1.0.144"
 

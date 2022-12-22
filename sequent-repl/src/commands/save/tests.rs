@@ -10,8 +10,8 @@ use revolver::terminal::{lines, AccessTerminalError, Mock, PrintOutput};
 use std::fs;
 
 fn command_parsers<'d>(
-) -> Vec<Box<dyn NamedCommandParser<TestContext, SimulationError<TestState>, Mock<'d>>>> {
-    vec![Box::new(Parser)]
+) -> Vec<Box<dyn NamedCommandParser<Mock<'d>, Context = TestContext, Error = SimulationError<TestState>>>> {
+    vec![Box::new(Parser::default())]
 }
 
 #[test]
@@ -26,7 +26,7 @@ fn apply_new_file() {
         &commander,
         &mut context,
     );
-    let mut save = Save { path: path.clone() };
+    let mut save = Save::new(path.clone());
     assert_eq!(ApplyOutcome::Applied, save.apply(&mut looper).unwrap());
     assert_eq!(
         format!("Saved scenario to '{}'.\n", path),
@@ -49,7 +49,7 @@ fn apply_existing_file_is_directory_io_error() {
         &commander,
         &mut context,
     );
-    let mut save = Save { path: path.clone() };
+    let mut save = Save::new(path.clone());
     assert_eq!(
         "is a directory",
         save.apply(&mut looper)
@@ -81,7 +81,7 @@ fn apply_existing_file_overwrite() {
         &commander,
         &mut context,
     );
-    let mut save = Save { path: path.clone() };
+    let mut save = Save::new(path.clone());
     assert_eq!(ApplyOutcome::Applied, save.apply(&mut looper).unwrap());
     assert_eq!(
         "Output file exists. Overwrite? [y/N]: ",
@@ -113,7 +113,7 @@ fn apply_existing_file_terminal_error() {
         &commander,
         &mut context,
     );
-    let mut save = Save { path: path.clone() };
+    let mut save = Save::new(path.clone());
     assert_eq!(
         AccessTerminalError("terminal exploded".into()),
         save.apply(&mut looper)
@@ -139,7 +139,7 @@ fn apply_existing_file_skip() {
         &commander,
         &mut context,
     );
-    let mut save = Save { path: path.clone() };
+    let mut save = Save::new(path.clone());
     assert_eq!(ApplyOutcome::Skipped, save.apply(&mut looper).unwrap());
     assert_eq!(
         "Output file exists. Overwrite? [y/N]: ",
@@ -166,5 +166,5 @@ fn parse_empty_args_fails() {
 
 #[test]
 fn parser_lints() {
-    assert_pedantic::<TestContext, _, Mock>(&Parser);
+    assert_pedantic::<TestContext, _, Mock>(&Parser::default());
 }

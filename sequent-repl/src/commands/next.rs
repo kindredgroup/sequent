@@ -1,6 +1,7 @@
 //! Stepping through the next event.
 
 use std::borrow::Cow;
+use std::marker::PhantomData;
 use sequent::SimulationError;
 use revolver::command::{ApplyCommandError, ApplyOutcome, Command, Description, NamedCommandParser, ParseCommandError};
 use revolver::looper::Looper;
@@ -10,9 +11,22 @@ use crate::Context;
 /// Command to step through the next event in the timeline. Upon completion, the current simulation state
 /// will reflect the sequential application of all events up to and including the upcoming event, and
 /// the cursor location will advance to the subsequent event (one after the upcoming event).
-pub struct Next;
+pub struct Next<S, C> {
+    __phantom_data: PhantomData<(S, C)>
+}
 
-impl<S, C: Context<S>, T: Terminal> Command<C, SimulationError<S>, T> for Next {
+impl<S, C> Default for Next<S, C> {
+    fn default() -> Self {
+        Self {
+            __phantom_data: PhantomData::default()
+        }
+    }
+}
+
+impl<S, C: Context<State = S>, T: Terminal> Command<T> for Next<S, C> {
+    type Context = C;
+    type Error = SimulationError<S>;
+
     fn apply(&mut self, looper: &mut Looper<C, SimulationError<S>, T>) -> Result<ApplyOutcome, ApplyCommandError<SimulationError<S>>> {
         let (terminal, _, context) = looper.split();
         context.sim().step().map_err(ApplyCommandError::Application)?;
@@ -22,11 +36,24 @@ impl<S, C: Context<S>, T: Terminal> Command<C, SimulationError<S>, T> for Next {
 }
 
 /// Parser for [`Next`].
-pub struct Parser;
+pub struct Parser<S, C> {
+    __phantom_data: PhantomData<(S, C)>
+}
 
-impl<S, C: Context<S>, T: Terminal> NamedCommandParser<C, SimulationError<S>, T> for Parser {
-    fn parse(&self, s: &str) -> Result<Box<dyn Command<C, SimulationError<S>, T>>, ParseCommandError> {
-        self.parse_no_args(s, || Next)
+impl<S, C> Default for Parser<S, C> {
+    fn default() -> Self {
+        Self {
+            __phantom_data: PhantomData::default()
+        }
+    }
+}
+
+impl<S: 'static, C: Context<State = S> + 'static, T: Terminal> NamedCommandParser<T> for Parser<S, C> {
+    type Context = C;
+    type Error = SimulationError<S>;
+
+    fn parse(&self, s: &str) -> Result<Box<dyn Command<T, Context = C, Error = SimulationError<S>>>, ParseCommandError> {
+        self.parse_no_args(s, Next::default)
     }
 
     fn shorthand(&self) -> Option<Cow<'static, str>> {
