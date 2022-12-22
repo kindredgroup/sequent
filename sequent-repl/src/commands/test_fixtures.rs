@@ -80,7 +80,9 @@ impl StaticNamed for Append {
     }
 }
 
-impl Event<TestState> for Append {
+impl Event for Append {
+    type State = TestState;
+
     fn apply(&self, state: &mut TestState, _: &mut Queue<'_, TestState>) -> Result<(), TransitionError> {
         if state.transitions.contains(&self.id) {
             Err(TransitionError(format!("duplicate ID {}", self.id).into()))
@@ -111,7 +113,7 @@ impl Context<TestState> for TestContext {
     }
 }
 
-fn event_parsers() -> Vec<Box<dyn NamedEventParser<TestState>>> {
+fn event_parsers() -> Vec<Box<dyn NamedEventParser<State = TestState>>> {
     vec![Box::new(Parser::<Append>::default())]
 }
 
@@ -120,7 +122,7 @@ impl TestContext {
         let scenario = Scenario {
             initial: TestState::default(),
             timeline: (0..num_events)
-                .map(|id| Box::new(Append { id }) as Box<dyn Event<TestState>>)
+                .map(|id| Box::new(Append { id }) as Box<dyn Event<State = TestState>>)
                 .collect(),
         };
         let sim = Simulation::from(scenario);

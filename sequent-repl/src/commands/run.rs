@@ -1,6 +1,7 @@
 //! Evaluation of the remaining events in the timeline.
 
 use std::borrow::Cow;
+use std::marker::PhantomData;
 use sequent::SimulationError;
 use revolver::command::{ApplyCommandError, ApplyOutcome, Command, Description, NamedCommandParser, ParseCommandError};
 use revolver::looper::Looper;
@@ -9,9 +10,22 @@ use crate::Context;
 
 /// Command to evaluate the remaining events in the timeline. By completion, the simulation state will
 /// reflect the sequential application of all events.
-pub struct Run;
+pub struct Run<S, C> {
+    __phantom_data: PhantomData<(S, C)>
+}
 
-impl<S, C: Context<S>, T: Terminal> Command<C, SimulationError<S>, T> for Run {
+impl<S, C> Default for Run<S, C> {
+    fn default() -> Self {
+        Self {
+            __phantom_data: PhantomData::default()
+        }
+    }
+}
+
+impl<S, C: Context<S>, T: Terminal> Command<T> for Run<S, C> {
+    type Context = C;
+    type Error = SimulationError<S>;
+
     fn apply(&mut self, looper: &mut Looper<C, SimulationError<S>, T>) -> Result<ApplyOutcome, ApplyCommandError<SimulationError<S>>> {
         let (terminal, _, context) = looper.split();
         context.sim().run().map_err(ApplyCommandError::Application)?;
@@ -21,11 +35,24 @@ impl<S, C: Context<S>, T: Terminal> Command<C, SimulationError<S>, T> for Run {
 }
 
 /// Parser for [`Run`].
-pub struct Parser;
+pub struct Parser<S, C> {
+    __phantom_data: PhantomData<(S, C)>
+}
 
-impl<S, C: Context<S>, T: Terminal> NamedCommandParser<C, SimulationError<S>, T> for Parser {
-    fn parse(&self, s: &str) -> Result<Box<dyn Command<C, SimulationError<S>, T>>, ParseCommandError> {
-        self.parse_no_args(s, || Run)
+impl<S, C> Default for Parser<S, C> {
+    fn default() -> Self {
+        Self {
+            __phantom_data: PhantomData::default()
+        }
+    }
+}
+
+impl<S: 'static, C: Context<S> + 'static, T: Terminal> NamedCommandParser<T> for Parser<S, C> {
+    type Context = C;
+    type Error = SimulationError<S>;
+
+    fn parse(&self, s: &str) -> Result<Box<dyn Command<T, Context = C, Error = SimulationError<S>>>, ParseCommandError> {
+        self.parse_no_args(s, Run::default)
     }
 
     fn shorthand(&self) -> Option<Cow<'static, str>> {

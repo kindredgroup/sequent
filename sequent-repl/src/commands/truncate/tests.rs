@@ -9,8 +9,8 @@ use revolver::terminal::{lines, Mock, PrintOutput};
 use crate::Context;
 
 fn command_parsers<'d>(
-) -> Vec<Box<dyn NamedCommandParser<TestContext, SimulationError<TestState>, Mock<'d>>>> {
-    vec![Box::new(Parser)]
+) -> Vec<Box<dyn NamedCommandParser<Mock<'d>, Context = TestContext, Error = SimulationError<TestState>>>> {
+    vec![Box::new(Parser::default())]
 }
 
 #[test]
@@ -23,7 +23,7 @@ fn apply_with_no() {
         &commander,
         &mut context,
     );
-    assert_eq!(ApplyOutcome::Skipped, Truncate.apply(&mut looper).unwrap());
+    assert_eq!(ApplyOutcome::Skipped, Truncate::default().apply(&mut looper).unwrap());
     assert_eq!(
         "Truncate timeline from cursor location 0? [y/N]: ",
         looper.terminal().invocations()[0].print().unwrap_output()
@@ -41,7 +41,7 @@ fn apply_with_yes() {
         &commander,
         &mut context,
     );
-    assert_eq!(ApplyOutcome::Applied, Truncate.apply(&mut looper).unwrap());
+    assert_eq!(ApplyOutcome::Applied, Truncate::default().apply(&mut looper).unwrap());
     assert_eq!(
         "Truncate timeline from cursor location 0? [y/N]: ",
         looper.terminal().invocations()[0].print().unwrap_output()
@@ -57,5 +57,5 @@ fn parse() {
 
 #[test]
 fn parser_lints() {
-    assert_pedantic::<TestContext, _, Mock>(&Parser);
+    assert_pedantic::<TestContext, _, Mock>(&Parser::default());
 }

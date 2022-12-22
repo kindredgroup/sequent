@@ -12,15 +12,29 @@ use revolver::looper::Looper;
 use revolver::terminal::Terminal;
 use serde::ser::Serialize;
 use std::borrow::Cow;
+use std::marker::PhantomData;
 use std::path::PathBuf;
 
 /// Command to save the scenario to a user-specified output file. If the file exists, a yes/no prompt
 /// will be presented before overwriting it.
-pub struct Save {
+pub struct Save<S, C> {
     path: String,
+    __phantom_data: PhantomData<(S, C)>
 }
 
-impl<S: Clone + Serialize, C: Context<S>, T: Terminal> Command<C, SimulationError<S>, T> for Save {
+impl<S, C> Save<S, C> {
+    pub fn new(path: String) -> Self {
+        Self {
+            path,
+            __phantom_data: PhantomData::default()
+        }
+    }
+}
+
+impl<S: Clone + Serialize, C: Context<S>, T: Terminal> Command<T> for Save<S, C> {
+    type Context = C;
+    type Error = SimulationError<S>;
+
     fn apply(
         &mut self,
         looper: &mut Looper<C, SimulationError<S>, T>,
@@ -47,20 +61,33 @@ impl<S: Clone + Serialize, C: Context<S>, T: Terminal> Command<C, SimulationErro
 }
 
 /// Parser for [`Save`].
-pub struct Parser;
+pub struct Parser<S, C> {
+    __phantom_data: PhantomData<(S, C)>
+}
 
-impl<S: Clone + Serialize, C: Context<S>, T: Terminal> NamedCommandParser<C, SimulationError<S>, T>
-    for Parser
+impl<S, C> Default for Parser<S, C> {
+    fn default() -> Self {
+        Self {
+            __phantom_data: PhantomData::default()
+        }
+    }
+}
+
+impl<S: Clone + Serialize + 'static, C: Context<S> + 'static, T: Terminal> NamedCommandParser<T>
+    for Parser<S, C>
 {
+    type Context = C;
+    type Error = SimulationError<S>;
+
     fn parse(
         &self,
         s: &str,
-    ) -> Result<Box<dyn Command<C, SimulationError<S>, T>>, ParseCommandError> {
+    ) -> Result<Box<dyn Command<T, Context = C, Error = SimulationError<S>>>, ParseCommandError> {
         if s.is_empty() {
             return Err(ParseCommandError("empty arguments to 'save'".into()));
         }
         let path = s.into();
-        Ok(Box::new(Save { path }))
+        Ok(Box::new(Save::new(path)))
     }
 
     fn shorthand(&self) -> Option<Cow<'static, str>> {

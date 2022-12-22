@@ -15,13 +15,12 @@
 //! see how many days the poor bugger spent climbing.
 
 use sequent::{Scenario, Simulation};
-use crate::climb::Climb;
 
 fn main() {
     let scenario = Scenario {
         initial: State::default(),
         timeline: vec![
-            Box::new(Climb)
+            Box::new(climb::Climb)
         ]
     };
 
@@ -32,7 +31,7 @@ fn main() {
 }
 
 #[derive(Default, Clone, Debug)]
-struct State {
+pub struct State {
     progress: u16,
     days: u16
 }
@@ -63,8 +62,10 @@ mod climb {
         }
     }
 
-    impl Event<State> for Climb {
-        fn apply(&self, state: &mut State, queue: &mut Queue<State>) -> Result<(), TransitionError> {
+    impl Event for Climb {
+        type State = State;
+
+        fn apply(&self, state: &mut Self::State, queue: &mut Queue<Self::State>) -> Result<(), TransitionError> {
             state.progress += CLIMB_STEP;
             state.days += 1;
             if state.progress < WALL_HEIGHT {
@@ -96,8 +97,10 @@ mod slip {
         }
     }
 
-    impl Event<State> for Slip {
-        fn apply(&self, state: &mut State, queue: &mut Queue<State>) -> Result<(), TransitionError> {
+    impl Event for Slip {
+        type State = State;
+
+        fn apply(&self, state: &mut Self::State, queue: &mut Queue<Self::State>) -> Result<(), TransitionError> {
             state.progress -= SLIP_STEP;
             queue.push_later(Box::new(Climb));
             Ok(())

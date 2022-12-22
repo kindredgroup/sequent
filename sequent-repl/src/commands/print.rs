@@ -1,6 +1,7 @@
 //! Printing of the simulation state.
 
 use std::borrow::Cow;
+use std::marker::PhantomData;
 use sequent::SimulationError;
 use revolver::command::{ApplyCommandError, ApplyOutcome, Command, Description, NamedCommandParser, ParseCommandError};
 use revolver::looper::Looper;
@@ -8,9 +9,22 @@ use revolver::terminal::Terminal;
 use crate::Context;
 
 /// Command that prints the current simulation state to the terminal device.
-pub struct Print;
+pub struct Print<S, C> {
+    __phantom_data: PhantomData<(S, C)>
+}
 
-impl<S, C: Context<S>, T: Terminal> Command<C, SimulationError<S>, T> for Print {
+impl<S, C> Default for Print<S, C> {
+    fn default() -> Self {
+        Self {
+            __phantom_data: PhantomData::default()
+        }
+    }
+}
+
+impl<S, C: Context<S>, T: Terminal> Command<T> for Print<S, C> {
+    type Context = C;
+    type Error = SimulationError<S>;
+
     fn apply(&mut self, looper: &mut Looper<C, SimulationError<S>, T>) -> Result<ApplyOutcome, ApplyCommandError<SimulationError<S>>> {
         let (terminal, _, context) = looper.split();
         context.print_state(terminal)?;
@@ -19,11 +33,24 @@ impl<S, C: Context<S>, T: Terminal> Command<C, SimulationError<S>, T> for Print 
 }
 
 /// Parser for [`Print`].
-pub struct Parser;
+pub struct Parser<S, C> {
+    __phantom_data: PhantomData<(S, C)>
+}
 
-impl<S, C: Context<S>, T: Terminal> NamedCommandParser<C, SimulationError<S>, T> for Parser {
-    fn parse(&self, s: &str) -> Result<Box<dyn Command<C, SimulationError<S>, T>>, ParseCommandError> {
-        self.parse_no_args(s, || Print)
+impl<S, C> Default for Parser<S, C> {
+    fn default() -> Self {
+        Self {
+            __phantom_data: PhantomData::default()
+        }
+    }
+}
+
+impl<S: 'static, C: Context<S> + 'static, T: Terminal> NamedCommandParser<T> for Parser<S, C> {
+    type Context = C;
+    type Error = SimulationError<S>;
+
+    fn parse(&self, s: &str) -> Result<Box<dyn Command<T, Context = C, Error = SimulationError<S>>>, ParseCommandError> {
+        self.parse_no_args(s, Print::default)
     }
 
     fn shorthand(&self) -> Option<Cow<'static, str>> {

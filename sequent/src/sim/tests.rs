@@ -27,11 +27,13 @@ impl StaticNamed for Append {
     }
 }
 
-impl Event<TestState> for Append {
+impl Event for Append {
+    type State = TestState;
+
     fn apply(
         &self,
-        state: &mut TestState,
-        _: &mut Queue<TestState>,
+        state: &mut Self::State,
+        _: &mut Queue<Self::State>,
     ) -> Result<(), TransitionError> {
         state.transitions.push(self.id);
         Ok(())
@@ -43,7 +45,7 @@ fn fixture() -> Scenario<TestState> {
     Scenario {
         initial: TestState::default(),
         timeline: (0..EVENTS)
-            .map(|id| Box::new(Append { id }) as Box<dyn Event<TestState>>)
+            .map(|id| Box::new(Append { id }) as Box<dyn Event<State = TestState>>)
             .collect(),
     }
 }
@@ -193,8 +195,10 @@ impl StaticNamed for Faulty {
     }
 }
 
-impl Event<TestState> for Faulty {
-    fn apply(&self, _: &mut TestState, _: &mut Queue<TestState>) -> Result<(), TransitionError> {
+impl Event for Faulty {
+    type State = TestState;
+
+    fn apply(&self, _: &mut Self::State, _: &mut Queue<Self::State>) -> Result<(), TransitionError> {
         Err(TransitionError("boom".into()))
     }
 }
@@ -314,11 +318,13 @@ impl StaticNamed for UpdateQueue {
     }
 }
 
-impl Event<TestState> for UpdateQueue {
+impl Event for UpdateQueue {
+    type State = TestState;
+
     fn apply(
         &self,
-        _: &mut TestState,
-        queue: &mut Queue<TestState>,
+        _: &mut Self::State,
+        queue: &mut Queue<Self::State>,
     ) -> Result<(), TransitionError> {
         queue.insert_later(
             self.insert_index,
@@ -330,7 +336,7 @@ impl Event<TestState> for UpdateQueue {
     }
 }
 
-fn slice_to_string(slice: &[Box<dyn Event<TestState>>]) -> String {
+fn slice_to_string(slice: &[Box<dyn Event<State = TestState>>]) -> String {
     let strings = slice
         .iter()
         .map(|item| item.to_string())
@@ -342,7 +348,7 @@ fn slice_to_string(slice: &[Box<dyn Event<TestState>>]) -> String {
 #[test]
 fn insert_queue() {
     {
-        let timeline: Vec<Box<dyn Event<TestState>>> = vec![Box::new(UpdateQueue {
+        let timeline: Vec<Box<dyn Event<State = TestState>>> = vec![Box::new(UpdateQueue {
             insert_index: 0,
             id_to_insert: 100,
         })];
@@ -355,7 +361,7 @@ fn insert_queue() {
         assert_eq!("[0|100, 100]", slice_to_string(&sim.scenario.timeline));
     }
     {
-        let timeline: Vec<Box<dyn Event<TestState>>> = vec![
+        let timeline: Vec<Box<dyn Event<State = TestState>>> = vec![
             Box::new(UpdateQueue {
                 insert_index: 0,
                 id_to_insert: 100,
@@ -374,7 +380,7 @@ fn insert_queue() {
         assert_eq!("[0|100, 100, 6|600]", slice_to_string(&sim.scenario.timeline));
     }
     {
-        let timeline: Vec<Box<dyn Event<TestState>>> = vec![
+        let timeline: Vec<Box<dyn Event<State = TestState>>> = vec![
             Box::new(UpdateQueue {
                 insert_index: 1,
                 id_to_insert: 100,

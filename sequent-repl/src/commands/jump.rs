@@ -9,16 +9,30 @@ use revolver::command::{
 use revolver::looper::Looper;
 use revolver::terminal::{Terminal};
 use std::borrow::Cow;
+use std::marker::PhantomData;
 
 /// Command to 'jump' to a specific event in the timeline. Upon completion, the simulation state
 /// will reflect the sequential application of all events up to but not including the one at
 /// the specified cursor location. Equivalently, 'jump 0' has the effect of resetting the simulation
 /// state.
-pub struct Jump {
+pub struct Jump<S, C> {
     location: usize,
+    __phantom_data: PhantomData<(S, C)>
 }
 
-impl<S: Clone, C: Context<S>, T: Terminal> Command<C, SimulationError<S>, T> for Jump {
+impl<S, C> Jump<S, C> {
+    fn new(location: usize) -> Self {
+        Self {
+            location,
+            __phantom_data: PhantomData::default()
+        }
+    }
+}
+
+impl<S: Clone, C: Context<S>, T: Terminal> Command<T> for Jump<S, C> {
+    type Context = C;
+    type Error = SimulationError<S>;
+
     fn apply(
         &mut self,
         looper: &mut Looper<C, SimulationError<S>, T>,
@@ -31,20 +45,33 @@ impl<S: Clone, C: Context<S>, T: Terminal> Command<C, SimulationError<S>, T> for
 }
 
 /// Parser for [`Jump`].
-pub struct Parser;
+pub struct Parser<S, C> {
+    __phantom_data: PhantomData<(S, C)>
+}
 
-impl<S: Clone, C: Context<S>, T: Terminal> NamedCommandParser<C, SimulationError<S>, T> for Parser {
+impl<S, C> Default for Parser<S, C> {
+    fn default() -> Self {
+        Self {
+            __phantom_data: PhantomData::default()
+        }
+    }
+}
+
+impl<S: Clone + 'static, C: Context<S> + 'static, T: Terminal> NamedCommandParser<T> for Parser<S, C> {
+    type Context = C;
+    type Error = SimulationError<S>;
+
     fn parse(
         &self,
         s: &str,
-    ) -> Result<Box<dyn Command<C, SimulationError<S>, T>>, ParseCommandError> {
+    ) -> Result<Box<dyn Command<T, Context = C, Error = SimulationError<S>>>, ParseCommandError> {
         if s.is_empty() {
             return Err(ParseCommandError(
                 "empty arguments to 'jump'".into(),
             ));
         }
         let location = s.parse().map_err(ParseCommandError::convert)?;
-        Ok(Box::new(Jump { location }))
+        Ok(Box::new(Jump::new(location)))
     }
 
     fn shorthand(&self) -> Option<Cow<'static, str>> {

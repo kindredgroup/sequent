@@ -15,8 +15,8 @@ use thiserror::Error;
 /// events comprise the sequence that follows the current event.
 pub struct Queue<'a, S> {
     offset: usize,
-    timeline: &'a Vec<Box<dyn Event<S>>>,
-    insertions: Vec<(usize, Box<dyn Event<S>>)>
+    timeline: &'a Vec<Box<dyn Event<State = S>>>,
+    insertions: Vec<(usize, Box<dyn Event<State = S>>)>
 }
 
 impl<'a, S> Queue<'a, S> {
@@ -25,7 +25,7 @@ impl<'a, S> Queue<'a, S> {
     ///
     /// # Panics
     /// If the offset is less than 1 or exceeds the length of the timeline.
-    pub fn new(offset: usize, timeline: &'a Vec<Box<dyn Event<S>>>) -> Self {
+    pub fn new(offset: usize, timeline: &'a Vec<Box<dyn Event<State = S>>>) -> Self {
         assert!(offset >= 1, "offset ({offset}) cannot be less than 1");
         assert!(offset <= timeline.len(), "offset ({offset}) cannot exceed length of timeline {}", timeline.len());
         Self {
@@ -41,7 +41,7 @@ impl<'a, S> Queue<'a, S> {
     ///
     /// # Panics
     /// If the insertion index exceeds the length of the timeline.
-    pub fn insert_later(&mut self, index: usize, event: Box<dyn Event<S>>) {
+    pub fn insert_later(&mut self, index: usize, event: Box<dyn Event<State = S>>) {
         let lim = self.timeline.len() + self.insertions.len() - self.offset;
         assert!(index <= lim, "insertion index ({index}) cannot exceed length of queue ({lim})");
         self.insertions.push((index, event));
@@ -50,29 +50,29 @@ impl<'a, S> Queue<'a, S> {
     /// Push an event onto the end of the queue. The effect on the queue
     /// (and the underlying event timeline) will not persist until after [`Event::apply()`]
     /// returns. Equivalently, the [`Queue::future()`] view will not change after calling this method.
-    pub fn push_later(&mut self, event: Box<dyn Event<S>>) {
+    pub fn push_later(&mut self, event: Box<dyn Event<State = S>>) {
         self.insert_later(self.timeline.len() + self.insertions.len() - self.offset, event);
     }
 
     /// A slice of past (already executed) events. This is an immutable view.
-    pub fn past(&self) -> &[Box<dyn Event<S>>] {
+    pub fn past(&self) -> &[Box<dyn Event<State = S>>] {
         &self.timeline[..self.offset - 1]
     }
 
     /// A slice of future events, excluding the current. This is an immutable view; it does not include
     /// events added via [`Queue::insert_later()`] or [`Queue::push_later()`].
-    pub fn future(&self) -> &[Box<dyn Event<S>>] {
+    pub fn future(&self) -> &[Box<dyn Event<State = S>>] {
         &self.timeline[self.offset..]
     }
 
     /// Consumes this queue, returning its constituents (`offset`, `timeline`, `insertions`).
     #[allow(clippy::type_complexity)]
-    pub fn into_inner(self) -> (usize, &'a Vec<Box<dyn Event<S>>>, Vec<(usize, Box<dyn Event<S>>)>) {
+    pub fn into_inner(self) -> (usize, &'a Vec<Box<dyn Event<State = S>>>, Vec<(usize, Box<dyn Event<State = S>>)>) {
         (self.offset, self.timeline, self.insertions)
     }
 }
 
-pub(crate) fn process_insertions<S>(offset: usize, insertions: Vec<(usize, Box<dyn Event<S>>)>, timeline: &mut Vec<Box<dyn Event<S>>>) {
+pub(crate) fn process_insertions<S>(offset: usize, insertions: Vec<(usize, Box<dyn Event<State = S>>)>, timeline: &mut Vec<Box<dyn Event<State = S>>>) {
     for (index, event) in insertions {
         timeline.insert(offset + index, event);
     }
@@ -80,7 +80,7 @@ pub(crate) fn process_insertions<S>(offset: usize, insertions: Vec<(usize, Box<d
 
 /// Dereferencing a [`Queue`] is equivalent to [`Queue::future()`].
 impl<S> Deref for Queue<'_, S> {
-    type Target = [Box<dyn Event<S>>];
+    type Target = [Box<dyn Event<State = S>>];
 
     fn deref(&self) -> &Self::Target {
         self.future()
@@ -113,7 +113,10 @@ impl<N: StaticNamed> Named for N {
 }
 
 /// Specification of a discrete event.
-pub trait Event<S>: Named + Debug + ToString {
+pub trait Event: Named + Debug + ToString {
+    /// The state type.
+    type State;
+
     /// Evaluates the event in the course of a simulation, applying it to the current state to
     /// produce the next state (by mutating the `state` reference in-place). The event may
     /// also insert or append new events to the pending queue. (Changes to the queue, if any, will
@@ -121,7 +124,7 @@ pub trait Event<S>: Named + Debug + ToString {
     ///
     /// # Errors
     /// [`TransitionError`] if the event could not be evaluated.
-    fn apply(&self, state: &mut S, queue: &mut Queue<S>) -> Result<(), TransitionError>;
+    fn apply(&self, state: &mut Self::State, queue: &mut Queue<Self::State>) -> Result<(), TransitionError>;
 }
 
 /// Produced by [`Event::apply()`] if an error occurs.
@@ -137,7 +140,7 @@ pub struct Scenario<S> {
     pub initial: S,
 
     /// Timeline of discrete [`Event`] objects.
-    pub timeline: Vec<Box<dyn Event<S>>>,
+    pub timeline: Vec<Box<dyn Event<State = S>>>,
 }
 
 impl<S: Default> Default for Scenario<S> {
@@ -155,18 +158,21 @@ impl<S: Default> Default for Scenario<S> {
 pub struct ParseEventError(pub Cow<'static, str>);
 
 /// A parser for [`Event`] types.
-pub trait NamedEventParser<S>: Named {
+pub trait NamedEventParser: Named {
+    /// The state type.
+    type State;
+
     /// Constructs an [`Event`] object from its string representation.
     ///
     /// # Errors
     /// [`ParseEventError`] if the given string slice could not be decoded.
-    fn parse(&self, s: &str) -> Result<Box<dyn Event<S>>, ParseEventError>;
+    fn parse(&self, s: &str) -> Result<Box<dyn Event<State = Self::State>>, ParseEventError>;
 }
 
 /// Decodes a name-value tuple into an [`Event`] object using a preconfigured map of
 /// parsers.
 pub struct Decoder<S> {
-    by_name: BTreeMap<String, Box<dyn NamedEventParser<S>>>,
+    by_name: BTreeMap<String, Box<dyn NamedEventParser<State = S>>>,
 }
 
 impl<S> Decoder<S> {
@@ -174,12 +180,12 @@ impl<S> Decoder<S> {
     ///
     /// # Panics
     /// If there was an error building a [`Decoder`] from the given parsers.
-    pub fn new(parsers: Vec<Box<dyn NamedEventParser<S>>>) -> Self {
+    pub fn new(parsers: Vec<Box<dyn NamedEventParser<State = S>>>) -> Self {
         parsers.try_into().unwrap()
     }
 
     /// An iterator over the underlying parsers.
-    pub fn parsers(&self) -> impl Iterator<Item = &Box<dyn NamedEventParser<S>>> {
+    pub fn parsers(&self) -> impl Iterator<Item = &Box<dyn NamedEventParser<State = S>>> {
         self.by_name.values()
     }
 
@@ -188,7 +194,7 @@ impl<S> Decoder<S> {
     ///
     /// # Errors
     /// [`ParseEventError`] if an event could not be decoded from the given `name` and `encoded` pair.
-    pub fn decode(&self, name: &str, encoded: &str) -> Result<Box<dyn Event<S>>, ParseEventError> {
+    pub fn decode(&self, name: &str, encoded: &str) -> Result<Box<dyn Event<State = S>>, ParseEventError> {
         let parser = self
             .by_name
             .get(name)
@@ -203,10 +209,10 @@ impl<S> Decoder<S> {
 #[error("{0}")]
 pub struct InvalidEventParserSpec(String);
 
-impl<S> TryFrom<Vec<Box<dyn NamedEventParser<S>>>> for Decoder<S> {
+impl<S> TryFrom<Vec<Box<dyn NamedEventParser<State = S>>>> for Decoder<S> {
     type Error = InvalidEventParserSpec;
 
-    fn try_from(parsers: Vec<Box<dyn NamedEventParser<S>>>) -> Result<Self, Self::Error> {
+    fn try_from(parsers: Vec<Box<dyn NamedEventParser<State = S>>>) -> Result<Self, Self::Error> {
         let mut by_name = BTreeMap::default();
         for parser in parsers {
             let name = parser.name();
@@ -243,12 +249,14 @@ where
 }
 
 /// Blanket [`NamedEventParser`] implementation for any compliant [`Parser`].
-impl<E, S> NamedEventParser<S> for Parser<E>
+impl<E> NamedEventParser for Parser<E>
 where
-    E: StaticNamed + FromStr + Event<S> + 'static,
+    E: StaticNamed + FromStr + Event + 'static,
     ParseEventError: From<<E as FromStr>::Err>,
 {
-    fn parse(&self, s: &str) -> Result<Box<dyn Event<S>>, ParseEventError> {
+    type State = E::State;
+
+    fn parse(&self, s: &str) -> Result<Box<dyn Event<State = Self::State>>, ParseEventError> {
         Ok(Box::new(E::from_str(s)?))
     }
 }

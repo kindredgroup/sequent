@@ -24,8 +24,10 @@ impl ToString for SampleEvent {
     }
 }
 
-impl Event<TestState> for SampleEvent {
-    fn apply(&self, _: &mut TestState, _: &mut Queue<TestState>) -> Result<(), TransitionError> {
+impl Event for SampleEvent {
+    type State = TestState;
+
+    fn apply(&self, _: &mut TestState, _: &mut Queue<Self::State>) -> Result<(), TransitionError> {
         Ok(())
     }
 }
@@ -54,8 +56,10 @@ impl Named for Parser {
     }
 }
 
-impl NamedEventParser<TestState> for Parser {
-    fn parse(&self, s: &str) -> Result<Box<dyn Event<TestState>>, ParseEventError> {
+impl NamedEventParser for Parser {
+    type State = TestState;
+
+    fn parse(&self, s: &str) -> Result<Box<dyn Event<State = Self::State>>, ParseEventError> {
         Ok(Box::new(SampleEvent::from_str(s)?))
     }
 }
@@ -74,7 +78,7 @@ fn parse_event_error_implements_display() {
 
 #[test]
 fn decoder() {
-    let parsers: Vec<Box<dyn NamedEventParser<_>>> = vec![Box::new(Parser { name: "sample" })];
+    let parsers: Vec<Box<dyn NamedEventParser<State = _>>> = vec![Box::new(Parser { name: "sample" })];
     let decoder = Decoder::new(parsers);
     assert_eq!(1, decoder.parsers().count());
     assert_eq!(None, decoder.decode("sample", "").err());
@@ -90,7 +94,7 @@ fn decoder() {
 
 #[test]
 fn decoder_duplicate() {
-    let parsers: Vec<Box<dyn NamedEventParser<_>>> = vec![
+    let parsers: Vec<Box<dyn NamedEventParser<State = _>>> = vec![
         Box::new(Parser { name: "gg" }),
         Box::new(Parser { name: "gg" }),
     ];
@@ -124,20 +128,22 @@ impl ToString for IndexedEvent {
     }
 }
 
-impl Event<TestState> for IndexedEvent {
-    fn apply(&self, _: &mut TestState, _: &mut Queue<TestState>) -> Result<(), TransitionError> {
+impl Event for IndexedEvent {
+    type State = TestState;
+
+    fn apply(&self, _: &mut TestState, _: &mut Queue<Self::State>) -> Result<(), TransitionError> {
         unimplemented!();
     }
 }
 
-fn indexed_events(range: Range<usize>) -> Vec<Box<dyn Event<TestState>>> {
+fn indexed_events(range: Range<usize>) -> Vec<Box<dyn Event<State = TestState>>> {
     range
         .into_iter()
-        .map(|idx| Box::new(IndexedEvent(idx)) as Box<dyn Event<TestState>>)
+        .map(|idx| Box::new(IndexedEvent(idx)) as Box<dyn Event<State = TestState>>)
         .collect()
 }
 
-fn indexes(events: &[Box<dyn Event<TestState>>]) -> Vec<usize> {
+fn indexes(events: &[Box<dyn Event<State = TestState>>]) -> Vec<usize> {
     events.iter().map(|event| usize::from_str(&event.to_string()).unwrap()).collect()
 }
 

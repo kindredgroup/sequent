@@ -11,11 +11,24 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 
 /// Command that delegates its evaluation to that of an [`Event`] object.
-pub struct EventProxy<S> {
-    event: Option<Box<dyn Event<S>>>,
+pub struct EventProxy<S, C> {
+    event: Option<Box<dyn Event<State = S>>>,
+    __phantom_data: PhantomData<C>
 }
 
-impl<S, C: Context<S>, T: Terminal> Command<C, SimulationError<S>, T> for EventProxy<S> {
+impl<S, C> EventProxy<S, C> {
+    pub fn new(event: Option<Box<dyn Event<State = S>>>) -> Self {
+        Self {
+            event,
+            __phantom_data: PhantomData::default(),
+        }
+    }
+}
+
+impl<S, C: Context<S>, T: Terminal> Command<T> for EventProxy<S, C> {
+    type Context = C;
+    type Error = SimulationError<S>;
+
     fn apply(&mut self, looper: &mut Looper<C, SimulationError<S>, T>) -> Result<ApplyOutcome, ApplyCommandError<SimulationError<S>>> {
         let mut event = self.event.take().unwrap();
         loop {
@@ -48,16 +61,16 @@ impl<S, C: Context<S>, T: Terminal> Command<C, SimulationError<S>, T> for EventP
 }
 
 /// Parser for [`EventProxy`] of some event type.
-pub struct Parser<S, E: Event<S>> {
+pub struct Parser<S, C, E: Event<State = S>> {
     shorthand: Option<Cow<'static, str>>,
     name: &'static str,
     description: Description,
-    __phantom_data: PhantomData<(S, E)>,
+    __phantom_data: PhantomData<(S, C, E)>,
 }
 
-impl<S, E> Parser<S, E>
+impl<S, C, E> Parser<S, C, E>
     where
-        E: Event<S> + FromStr + StaticNamed,
+        E: Event<State = S> + FromStr + StaticNamed,
 {
     /// Creates a new parser. The name is taken from the event type, provided the latter implements
     /// [`StaticNamed`].
@@ -71,16 +84,17 @@ impl<S, E> Parser<S, E>
     }
 }
 
-impl<S: 'static, C: Context<S>, E, T: Terminal> NamedCommandParser<C, SimulationError<S>, T> for Parser<S, E>
+impl<S: 'static, C: Context<S> + 'static, E, T: Terminal> NamedCommandParser<T> for Parser<S, C, E>
     where
-        E: FromStr + Event<S> + 'static,
+        E: FromStr + Event<State = S> + 'static,
         E::Err: ToString
 {
-    fn parse(&self, s: &str) -> Result<Box<dyn Command<C, SimulationError<S>, T>>, ParseCommandError> {
+    type Context = C;
+    type Error = SimulationError<S>;
+
+    fn parse(&self, s: &str) -> Result<Box<dyn Command<T, Context = C, Error = SimulationError<S>>>, ParseCommandError> {
         let event = E::from_str(s).map_err(ParseCommandError::convert)?;
-        let proxy = EventProxy {
-            event: Some(Box::new(event)),
-        };
+        let proxy = EventProxy::new(Some(Box::new(event)));
         Ok(Box::new(proxy))
     }
 
