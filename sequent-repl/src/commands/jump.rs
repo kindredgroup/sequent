@@ -29,7 +29,7 @@ impl<S, C> Jump<S, C> {
     }
 }
 
-impl<S: Clone, C: Context<S>, T: Terminal> Command<T> for Jump<S, C> {
+impl<S: Clone, C: Context<State = S>, T: Terminal> Command<T> for Jump<S, C> {
     type Context = C;
     type Error = SimulationError<S>;
 
@@ -57,7 +57,7 @@ impl<S, C> Default for Parser<S, C> {
     }
 }
 
-impl<S: Clone + 'static, C: Context<S> + 'static, T: Terminal> NamedCommandParser<T> for Parser<S, C> {
+impl<S: Clone + 'static, C: Context<State = S> + 'static, T: Terminal> NamedCommandParser<T> for Parser<S, C> {
     type Context = C;
     type Error = SimulationError<S>;
 

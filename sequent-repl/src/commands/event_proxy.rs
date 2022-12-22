@@ -25,7 +25,7 @@ impl<S, C> EventProxy<S, C> {
     }
 }
 
-impl<S, C: Context<S>, T: Terminal> Command<T> for EventProxy<S, C> {
+impl<S, C: Context<State = S>, T: Terminal> Command<T> for EventProxy<S, C> {
     type Context = C;
     type Error = SimulationError<S>;
 
@@ -84,7 +84,7 @@ impl<S, C, E> Parser<S, C, E>
     }
 }
 
-impl<S: 'static, C: Context<S> + 'static, E, T: Terminal> NamedCommandParser<T> for Parser<S, C, E>
+impl<S: 'static, C: Context<State = S> + 'static, E, T: Terminal> NamedCommandParser<T> for Parser<S, C, E>
     where
         E: FromStr + Event<State = S> + 'static,
         E::Err: ToString

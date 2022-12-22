@@ -45,7 +45,7 @@ impl ToString for Append {
 }
 
 /// Produced by a broad range of types during parsing, typically when calling
-/// [`FromStr`](std::str::FromStr).
+/// [`FromStr`].
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[error("{0}")]
 pub struct ParseError(pub Cow<'static, str>);
@@ -99,7 +99,9 @@ pub struct TestContext {
     decoder: Decoder<TestState>,
 }
 
-impl Context<TestState> for TestContext {
+impl Context for TestContext {
+    type State = TestState;
+
     fn sim(&mut self) -> &mut Simulation<TestState> {
         &mut self.sim
     }

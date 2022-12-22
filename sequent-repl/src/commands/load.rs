@@ -31,7 +31,7 @@ impl<S, C> Load<S, C> {
     }
 }
 
-impl<S, C: Context<S>, T: Terminal> Command<T> for Load<S, C>
+impl<S, C: Context<State = S>, T: Terminal> Command<T> for Load<S, C>
 where
     for<'de> S: Clone + Deserialize<'de>,
 {
@@ -68,7 +68,7 @@ impl<S, C> Default for Parser<S, C> {
     }
 }
 
-impl<S, C: Context<S> + 'static, T: Terminal> NamedCommandParser<T> for Parser<S, C>
+impl<S, C: Context<State = S> + 'static, T: Terminal> NamedCommandParser<T> for Parser<S, C>
 where
     for<'de> S: Clone + Deserialize<'de> + 'static,
 {

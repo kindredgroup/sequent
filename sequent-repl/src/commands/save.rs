@@ -31,7 +31,7 @@ impl<S, C> Save<S, C> {
     }
 }
 
-impl<S: Clone + Serialize, C: Context<S>, T: Terminal> Command<T> for Save<S, C> {
+impl<S: Clone + Serialize, C: Context<State = S>, T: Terminal> Command<T> for Save<S, C> {
     type Context = C;
     type Error = SimulationError<S>;
 
@@ -73,7 +73,7 @@ impl<S, C> Default for Parser<S, C> {
     }
 }
 
-impl<S: Clone + Serialize + 'static, C: Context<S> + 'static, T: Terminal> NamedCommandParser<T>
+impl<S: Clone + Serialize + 'static, C: Context<State = S> + 'static, T: Terminal> NamedCommandParser<T>
     for Parser<S, C>
 {
     type Context = C;

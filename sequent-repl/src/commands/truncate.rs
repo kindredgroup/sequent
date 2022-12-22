@@ -23,7 +23,7 @@ impl<S, C> Default for Truncate<S, C> {
     }
 }
 
-impl<S, C: Context<S>, T: Terminal> Command<T> for Truncate<S, C> {
+impl<S, C: Context<State = S>, T: Terminal> Command<T> for Truncate<S, C> {
     type Context = C;
     type Error = SimulationError<S>;
 
@@ -58,7 +58,7 @@ impl<S, C> Default for Parser<S, C> {
     }
 }
 
-impl<S: 'static, C: Context<S> + 'static, T: Terminal> NamedCommandParser<T> for Parser<S, C> {
+impl<S: 'static, C: Context<State = S> + 'static, T: Terminal> NamedCommandParser<T> for Parser<S, C> {
     type Context = C;
     type Error = SimulationError<S>;
 
